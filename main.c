@@ -4,7 +4,6 @@
 #include <tchar.h>
 #include <strsafe.h>
 
-#pragma region
 struct sockaddr_un {
     unsigned short sun_family;               /* AF_UNIX */
     char           sun_path[108];            /* pathname */
@@ -23,8 +22,6 @@ struct sockaddr_un {
 #define O_NONBLOCK  00004000
 #define BUFSIZE 2048 // size of read/write buffers
 
-#pragma endregion wine-specific header thingy
-#pragma region
 __declspec(naked) unsigned int l_getpid() {
     __asm__ (
             "mov eax, 0x14\n\t"
@@ -113,8 +110,7 @@ __declspec(naked) int l_read(unsigned int fd, char* buf, unsigned int count) {
             "ret"
             );
 }
-#pragma endregion syscall wrappers
-#pragma region
+
 int l_socket(int domain, int type, int protocol) {
     void* args[3];
     args[0] = (void*)(int*)domain;
@@ -145,7 +141,6 @@ int l_connect(int sockfd, const struct sockaddr *addr, unsigned int addrlen) {
 /*     args[3] = (void*)(int*)flags; */
 /*     return l_socketcall(10, args); */
 /* } */
-#pragma endregion socketcall wrappers
 
 char* getenv_(char* name) // written by https://github.com/Francesco149
 {
@@ -224,13 +219,11 @@ static HANDLE make_wine_system_process()
 
 DWORD WINAPI wait_for_client(LPVOID param)
 {
-    BOOL fConnected;
     (void)param;
 
     fConnected = ConnectNamedPipe(hPipe, NULL) ?
          TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
 
-    SleepEx(16, FALSE);
     SetEvent(conn_evt);
     return 0;
 }
@@ -267,7 +260,7 @@ int _tmain(VOID)
 
     if (hPipe == INVALID_HANDLE_VALUE)
     {
-        _tprintf(TEXT("CreateNamedPipe failed, GLE=%d.\n"), GetLastError());
+        _tprintf(TEXT("CreateNamedPipe failed, GLE=%lu.\n"), GetLastError());
         return -1;
     }
 
@@ -278,9 +271,6 @@ int _tmain(VOID)
         DWORD result = WaitForMultipleObjectsEx(2, events, FALSE, 16, FALSE);
         if (result == WAIT_TIMEOUT)
 		continue;
-
-        if (result == 1)
-            fConnected = TRUE;
 
         break;
     }
@@ -333,7 +323,7 @@ int _tmain(VOID)
 
         if (hThread == NULL)
         {
-            _tprintf(TEXT("CreateThread failed, GLE=%d.\n"), GetLastError());
+            _tprintf(TEXT("CreateThread failed, GLE=%lu.\n"), GetLastError());
             return 1;
         }
 
@@ -357,7 +347,7 @@ int _tmain(VOID)
                 }
             }
 
-            printf("%d bytes w->l\n", bytes_read);
+            printf("%ld bytes w->l\n", bytes_read);
             /* uncomment to dump the actual data being passed from the pipe to the socket */
             /* for(int i=0;i<bytes_read;i++)putchar(buf[i]); */
             /* printf("\n"); */
