@@ -228,12 +228,11 @@ DWORD WINAPI wait_for_client(LPVOID param)
     return 0;
 }
 
-int _tmain(VOID)
+int main(void)
 {
     DWORD  dwThreadId = 0;
     HANDLE hThread = NULL;
     HANDLE wine_evt = NULL;
-    LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\discord-ipc-0");
 
     if ((wine_evt = make_wine_system_process()) == NULL) {
         return 1;
@@ -245,9 +244,9 @@ int _tmain(VOID)
     // with that client, and this loop is free to wait for the
     // next client connect request. It is an infinite loop.
 
-    _tprintf( TEXT("Pipe Server: Main thread awaiting client connection on %s\n"), lpszPipename);
-    hPipe = CreateNamedPipe(
-            lpszPipename,             // pipe name
+    printf("Opening discord-ipc-0 Windows pipe\n");
+    hPipe = CreateNamedPipeW(
+            L"\\\\.\\pipe\\discord-ipc-0",             // pipe name
             PIPE_ACCESS_DUPLEX,       // read/write access
             PIPE_TYPE_BYTE |       // message type pipe
             PIPE_READMODE_BYTE |   // message-read mode
@@ -260,7 +259,7 @@ int _tmain(VOID)
 
     if (hPipe == INVALID_HANDLE_VALUE)
     {
-        _tprintf(TEXT("CreateNamedPipe failed, GLE=%lu.\n"), GetLastError());
+        printf("CreateNamedPipe failed, GLE=%lu.\n", GetLastError());
         return -1;
     }
 
@@ -268,9 +267,13 @@ int _tmain(VOID)
     CloseHandle(CreateThread(NULL, 0, wait_for_client, NULL, 0, NULL));
     for (;;) {
         HANDLE events[] = { wine_evt, conn_evt };
-        DWORD result = WaitForMultipleObjectsEx(2, events, FALSE, 16, FALSE);
+        DWORD result = WaitForMultipleObjectsEx(2, events, FALSE, 0, FALSE);
         if (result == WAIT_TIMEOUT)
-		continue;
+	    continue;
+
+        if (result == 0) {
+            printf("Bridge exiting, wine closing\n");
+        }
 
         break;
     }
@@ -323,7 +326,7 @@ int _tmain(VOID)
 
         if (hThread == NULL)
         {
-            _tprintf(TEXT("CreateThread failed, GLE=%lu.\n"), GetLastError());
+            printf("CreateThread failed, GLE=%lu.\n", GetLastError());
             return 1;
         }
 
