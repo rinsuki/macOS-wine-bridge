@@ -199,12 +199,52 @@ static HANDLE hPipe = INVALID_HANDLE_VALUE;
 static int sock_fd;
 DWORD WINAPI winwrite_thread(LPVOID lpvParam);
 
+// koukuno: This implemented because if no client ever connects but there are no more user
+// wine processes running, this bridge can just exit gracefully.
+static HANDLE conn_evt = INVALID_HANDLE_VALUE;
+static BOOL fConnected = FALSE;
+
+static HANDLE make_wine_system_process()
+{
+    HMODULE ntdll_mod;
+    FARPROC proc;
+
+    if ((ntdll_mod = GetModuleHandleW(L"NTDLL.DLL")) == NULL) {
+        printf("Cannot find NTDLL.DLL in process map");
+        return NULL;
+    }
+
+    if ((proc = GetProcAddress(ntdll_mod, "__wine_make_process_system")) == NULL) {
+        printf("Not a wine installation?");
+        return NULL;
+    }
+
+    return ((HANDLE (CDECL *)(void))proc)();
+}
+
+DWORD WINAPI wait_for_client(LPVOID param)
+{
+    BOOL fConnected;
+    (void)param;
+
+    fConnected = ConnectNamedPipe(hPipe, NULL) ?
+         TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
+
+    SleepEx(16, FALSE);
+    SetEvent(conn_evt);
+    return 0;
+}
+
 int _tmain(VOID)
 {
-    BOOL   fConnected = FALSE;
     DWORD  dwThreadId = 0;
     HANDLE hThread = NULL;
+    HANDLE wine_evt = NULL;
     LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\discord-ipc-0");
+
+    if ((wine_evt = make_wine_system_process()) == NULL) {
+        return 1;
+    }
 
     // The main loop creates an instance of the named pipe and
     // then waits for a client to connect to it. When the client
@@ -231,12 +271,19 @@ int _tmain(VOID)
         return -1;
     }
 
-    // Wait for the client to connect; if it succeeds,
-    // the function returns a nonzero value. If the function
-    // returns zero, GetLastError returns ERROR_PIPE_CONNECTED.
+    conn_evt = CreateEventW(NULL, FALSE, FALSE, NULL);
+    CloseHandle(CreateThread(NULL, 0, wait_for_client, NULL, 0, NULL));
+    for (;;) {
+        HANDLE events[] = { wine_evt, conn_evt };
+        DWORD result = WaitForMultipleObjectsEx(2, events, FALSE, 16, FALSE);
+        if (result == WAIT_TIMEOUT)
+		continue;
 
-    fConnected = ConnectNamedPipe(hPipe, NULL) ?
-        TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
+        if (result == 1)
+            fConnected = TRUE;
+
+        break;
+    }
 
     if (fConnected)
     {
@@ -331,6 +378,9 @@ int _tmain(VOID)
     else
         // The client could not connect, so close the pipe.
         CloseHandle(hPipe);
+
+    CloseHandle(wine_evt);
+    CloseHandle(conn_evt);
 
     return 0;
 }
