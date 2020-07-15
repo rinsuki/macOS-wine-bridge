@@ -8,184 +8,111 @@ struct sockaddr_un {
     unsigned short sun_family;               /* AF_UNIX */
     char           sun_path[108];            /* pathname */
 };
-/* struct sockaddr { */
-/*     unsigned short sa_family;   // address family, AF_xxx */
-/*     char           sa_data[14]; // 14 bytes of protocol address */
-/* }; */
-#define AF_UNIX     1
-#define SOCK_STREAM     1
-#define F_SETFL 4
-#define O_RDONLY    00000000
-#define O_WRONLY    00000001
-#define O_CREAT     00000100
-#define O_APPEND    00002000
-#define O_NONBLOCK  00004000
+
+// #define AF_UNIX     0x0001
+// #define SOCK_STREAM 0x0001
+#define F_SETFL     0x0004
+#define O_RDONLY    0x0000
+#define O_WRONLY    0x0001
+#define O_CREAT     0x0200
+#define O_APPEND    0x0008
+#define O_NONBLOCK  0x0004
 #define BUFSIZE 2048 // size of read/write buffers
 
-__declspec(naked) unsigned int l_getpid() {
+__declspec(naked) void __syscall() {
+	__asm__ (
+            "__syscall:\n\t"
+            // "push rdi\n\t"
+            // "push rsi\n\t"
+            // "push rdx\n\t"
+            // "push r10\n\t"
+            // "push r8\n\t"
+            // "push r9\n\t"
+
+            "add rax, 0x2000000\n\t"
+            // "mov rdi, [rsp]\n\t"
+            // "mov rsi, [rsp + 4]\n\t"
+            // "mov rdx, [rsp + 8]\n\t"
+            // "mov r10, [rsp + 12]\n\t"
+            // "mov r8, [rsp + 16]\n\t"
+            // "mov r9, [rsp + 16]\n\t"
+
+            "syscall\n\t"
+            "jnc noerror\n\t"
+            "neg rax\n\t"
+            "noerror:\n\t"
+
+            // "pop r9\n\t"
+            // "pop r8\n\t"
+            // "pop r10\n\t"
+            // "pop rdx\n\t"
+            // "pop rsi\n\t"
+            // "pop rdi\n\t"
+            "ret"
+            );
+}
+
+// technocoder: sysv_abi must be used for x86_64 unix system calls
+__declspec(naked) __attribute__((sysv_abi)) unsigned int l_getpid() {
     __asm__ (
             "mov eax, 0x14\n\t"
-            "int 0x80\n\t"
+            "jmp __syscall\n\t"
             "ret"
             );
 }
-__declspec(naked) int l_close(int fd) {
+__declspec(naked) __attribute__((sysv_abi)) int l_close(int fd) {
     __asm__ (
-            "push ebx\n\t"
-
             "mov eax, 0x06\n\t"
-            "mov ebx, [esp + 4 + 4]\n\t"
-            "int 0x80\n\t"
-
-            "pop ebx\n\t"
+            "jmp __syscall\n\t"
             "ret"
             );
 }
-__declspec(naked) int l_socketcall(int call, void* args) {
+__declspec(naked) __attribute__((sysv_abi)) int l_fcntl(unsigned int fd, unsigned int cmd, unsigned long arg) {
     __asm__ (
-            "push ebx\n\t"
-
-            "mov eax, 0x66\n\t"
-            "mov ebx, [esp + 4 + 4]\n\t"
-            "mov ecx, [esp + 4 + 8]\n\t"
-            "int 0x80\n\t"
-
-            "pop ebx\n\t"
+            "mov eax, 0x5c\n\t"
+            "jmp __syscall\n\t"
             "ret"
             );
 }
-__declspec(naked) int l_fcntl(unsigned int fd, unsigned int cmd, unsigned long arg) {
+__declspec(naked) __attribute__((sysv_abi)) int l_open(const char* filename, int flags, int mode) {
     __asm__ (
-            "push ebx\n\t"
-
-            "mov eax, 0x37\n\t"
-            "mov ebx, [esp + 4 + 4]\n\t"
-            "mov ecx, [esp + 4 + 8]\n\t"
-            "mov edx, [esp + 4 + 12]\n\t"
-            "int 0x80\n\t"
-
-            "pop ebx\n\t"
-            "ret"
-            );
-}
-__declspec(naked) int l_open(const char* filename, int flags, int mode) {
-    __asm__ (
-            "push ebx\n\t"
-
             "mov eax, 0x05\n\t"
-            "mov ebx, [esp + 4 + 4]\n\t"
-            "mov ecx, [esp + 4 + 8]\n\t"
-            "mov edx, [esp + 4 + 12]\n\t"
-            "int 0x80\n\t"
-
-            "pop ebx\n\t"
+            "jmp __syscall\n\t"
             "ret"
             );
 }
-__declspec(naked) int l_write(unsigned int fd, const char* buf, unsigned int count) {
+__declspec(naked) __attribute__((sysv_abi)) int l_write(unsigned int fd, const char* buf, unsigned int count) {
     __asm__ (
-            "push ebx\n\t"
-
             "mov eax, 0x04\n\t"
-            "mov ebx, [esp + 4 + 4]\n\t"
-            "mov ecx, [esp + 4 + 8]\n\t"
-            "mov edx, [esp + 4 + 12]\n\t"
-            "int 0x80\n\t"
-
-            "pop ebx\n\t"
+            "jmp __syscall\n\t"
             "ret"
             );
 }
-__declspec(naked) int l_read(unsigned int fd, char* buf, unsigned int count) {
+__declspec(naked) __attribute__((sysv_abi)) int l_read(unsigned int fd, char* buf, unsigned int count) {
     __asm__ (
-            "push ebx\n\t"
-
             "mov eax, 0x03\n\t"
-            "mov ebx, [esp + 4 + 4]\n\t"
-            "mov ecx, [esp + 4 + 8]\n\t"
-            "mov edx, [esp + 4 + 12]\n\t"
-            "int 0x80\n\t"
-
-            "pop ebx\n\t"
+            "jmp __syscall\n\t"
             "ret"
             );
 }
-
-int l_socket(int domain, int type, int protocol) {
-    void* args[3];
-    args[0] = (void*)(int*)domain;
-    args[1] = (void*)(int*)type;
-    args[2] = (void*)(int*)protocol;
-    return l_socketcall(1, args);
+__declspec(naked) __attribute__((sysv_abi)) int l_socket(int domain, int type, int protocol) {
+	__asm__ (
+            "mov eax, 0x61\n\t"
+            "jmp __syscall\n\t"
+            "ret"
+            );
 }
-int l_connect(int sockfd, const struct sockaddr *addr, unsigned int addrlen) {
-    void* args[3];
-    args[0] = (void*)(int*)sockfd;
-    args[1] = (void*)addr;
-    args[2] = (void*)(int*)addrlen;
-    return l_socketcall(3, args);
-}
-/* int send(int sockfd, const void* buf, unsigned int len, int flags) { */
-/*     void* args[4]; */
-/*     args[0] = (void*)(int*)sockfd; */
-/*     args[1] = (void*)buf; */
-/*     args[2] = (void*)(unsigned int*)len; */
-/*     args[3] = (void*)(int*)flags; */
-/*     return l_socketcall(9, args); */
-/* } */
-/* int recv(int fd, void* buf, unsigned int len, int flags) { */
-/*     void* args[4]; */
-/*     args[0] = (void*)(int*)fd; */
-/*     args[1] = (void*)buf; */
-/*     args[2] = (void*)(unsigned int*)len; */
-/*     args[3] = (void*)(int*)flags; */
-/*     return l_socketcall(10, args); */
-/* } */
-
-char* getenv_(char* name) // written by https://github.com/Francesco149
-{
-    static char buf[1024 * 1024];
-    static char* end = 0;
-    unsigned int namelen;
-    char* p;
-
-    if (!end) {
-        int fd, n;
-
-        fd = l_open("/proc/self/environ", 0, 0);
-        if (fd < 0) {
-            return 0;
-        }
-
-        n = l_read((unsigned int)fd, buf, (unsigned int)sizeof(buf));
-        if (n < 0) {
-            return 0;
-        }
-
-        l_close(fd);
-        end = buf + n;
-    }
-
-    namelen = strlen(name);
-
-    for (p = buf; p < end;) {
-        if (!strncmp(p, name, namelen)) {
-            return p + namelen + 1; /* skip name and the = */
-        }
-
-        for (; *p && p < end; ++p); /* skip to next entry */
-        ++p;
-    }
-
-    return 0;
+__declspec(naked) __attribute__((sysv_abi)) int l_connect(int sockfd, const struct sockaddr *addr, unsigned int addrlen) {
+	__asm__ (
+            "mov eax, 0x62\n\t"
+            "jmp __syscall\n\t"
+            "ret"
+            );
 }
 
 static const char* get_temp_path()
 {
-    const char* temp = getenv_("XDG_RUNTIME_DIR");
-    temp = temp ? temp : getenv_("TMPDIR");
-    temp = temp ? temp : getenv_("TMP");
-    temp = temp ? temp : getenv_("TEMP");
+    const char* temp = getenv("TMPDIR");
     temp = temp ? temp : "/tmp";
     return temp;
 }
@@ -289,6 +216,8 @@ int main(void)
             return 1;
         }
 
+        printf("Socket created\n");
+
         struct sockaddr_un addr;
         addr.sun_family = AF_UNIX;
 
@@ -297,7 +226,7 @@ int main(void)
         char connected = 0;
         for (int pipeNum = 0; pipeNum < 10; ++pipeNum) {
 
-            snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/discord-ipc-%d", temp_path, pipeNum);
+            snprintf(addr.sun_path, sizeof(addr.sun_path), "%sdiscord-ipc-%d", temp_path, pipeNum);
             printf("Attempting to connect to %s\n", addr.sun_path);
 
             if (l_connect(sock_fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {

@@ -25,14 +25,14 @@ windows_dir="$(echo -n "$windows_dir" | sed 's/\r//g')"
 
 install()
 {
-	cp -v "$basedir/winediscordipcbridge.exe" "$windows_dir/winediscordipcbridge.exe"
-	$wine_bin reg add 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunServices' /v 'winediscordipcbridge' /d 'C:\windows\winediscordipcbridge.exe' /f >/dev/null 2>&1
+	cp -v "$basedir/bridge.exe" "$windows_dir/bridge.exe"
+	$wine_bin reg add 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunServices' /v 'bridge' /d 'C:\windows\bridge.exe' /f >/dev/null 2>&1
 }
 
 uninstall()
 {
-	rm -v "$windows_dir/winediscordipcbridge.exe"
-	$wine_bin reg delete 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunServices' /v 'winediscordipcbridge.exe' /f >/dev/null 2>&1
+	rm -v "$windows_dir/bridge.exe"
+	$wine_bin reg delete 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunServices' /v 'bridge.exe' /f >/dev/null 2>&1
 }
 
 $action
