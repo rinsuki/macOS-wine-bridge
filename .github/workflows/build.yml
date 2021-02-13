@@ -1,0 +1,15 @@
+name: Build
+on:
+  - push
+
+jobs:
+  build:
+    name: Build
+    runs-on: [macOS-latest]
+    steps:
+    - run: brew install mingw-w64
+    - run: make
+    - uses: actions/upload-artifact@v2
+      with:
+        name: macOS-wine-bridge-64bit
+        path: bridge.exe
